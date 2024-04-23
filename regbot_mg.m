@@ -6,7 +6,7 @@ close all
 clear
 
 %% Simulink model name
-model='regbot_1mg';
+model='regbot_1yayamg';
 
 %% parameters for REGBOT
 % motor
@@ -34,7 +34,7 @@ pushDist = 0.1; % relative to motor axle [m]
 Kpwv = 20;     % Kp
 tiwv = 0.01;   % Tau_i
 Kffwv = 0;     % feed forward constant
-startAngle = 10;  % tilt in degrees at time zero
+startAngle = 0;  % tilt in degrees at time zero
 twvlp = 0.005;    % velocity noise low pass filter time constant (recommended)
 
 %% Estimate transfer function for base system using LINEARIZE
@@ -62,7 +62,7 @@ title('Transfer function from motor voltage to velocity')
 
 %%tilt
 
-iostilt(1) = linio(strcat(model, '/Gain2'),1,'openinput');
+iostilt(1) = linio(strcat(model, '/Transfer Fcn'),1,'openinput');
 iostilt(2) = linio(strcat(model, '/tilt_angle'),1,'openoutput');
 setlinio(model,iostilt);
 systilt = linearize(model,iostilt,op);
@@ -73,4 +73,23 @@ kppost = -1.56;
 tipost = 0.1; 
 Gtilt_post = Gtilt*kppost*tf([tipost,1],[tipost,0]);
 
-
+%tilt controller
+w = logspace(-2,2,3000);
+[mag phase] = bode(Gtilt_post,w);
+alpha = 0.1;
+Ni = 5;
+phasemargin = 60;
+phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
+phi_i = rad2deg(atan2(-1,Ni));
+pc = phasemargin - 180 - phi_d - phi_i;
+n = find(phase > pc, 1, 'last');
+wc = w(n);
+tau_d = 1/(sqrt(alpha)*wc);
+tau_i = Ni/wc;
+Gd_tilt = tf([tau_d 1],[alpha*tau_d 1]);
+Gi_tilt = tf([tau_i 1], [tau_i 0]);
+[magc, phasec] = bode(Gtilt_post*Gi_tilt*Gd_tilt,wc);
+Kp_tilt = 1/magc;
+Gtilt_ol = Gtilt_post*Gi_tilt*Gd_tilt*Kp_tilt;
+Gtilt_cl = (Gtilt_ol)/(Gtilt_ol+1);
+Gtilt_controller = Gi_tilt*Gd_tilt*Kp_tilt;
