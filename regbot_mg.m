@@ -54,10 +54,10 @@ sys = linearize(model,ios,op);
 [num,den] = ss2tf(sys.A, sys.B, sys.C, sys.D);
 Gwv = minreal(tf(num, den))
 %% Bodeplot
-h = figure(100)
+%h = figure(100)
 %bode(Gwv)
-grid on
-title('Transfer function from motor voltage to velocity')
+%grid on
+%title('Transfer function from motor voltage to velocity')
 
 
 %%tilt
@@ -77,7 +77,7 @@ Gtilt_post = Gtilt*kppost*tf([tipost,1],[tipost,0]);
 w = logspace(-2,2,3000);
 [mag phase] = bode(Gtilt_post,w);
 alpha = 0.1;
-Ni = 5;
+Ni = 3;
 phasemargin = 60;
 phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
 phi_i = rad2deg(atan2(-1,Ni));
@@ -91,5 +91,5 @@ Gi_tilt = tf([tau_i 1], [tau_i 0]);
 [magc, phasec] = bode(Gtilt_post*Gi_tilt*Gd_tilt,wc);
 Kp_tilt = 1/magc;
 Gtilt_ol = Gtilt_post*Gi_tilt*Gd_tilt*Kp_tilt;
-Gtilt_cl = (Gtilt_ol)/(Gtilt_ol+1);
+Gtilt_cl = minreal((Gtilt_ol)/(Gtilt_ol+1));
 Gtilt_controller = Gi_tilt*Gd_tilt*Kp_tilt;
