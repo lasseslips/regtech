@@ -93,3 +93,31 @@ Kp_tilt = 1/magc;
 Gtilt_ol = Gtilt_post*Gi_tilt*Gd_tilt*Kp_tilt;
 Gtilt_cl = minreal((Gtilt_ol)/(Gtilt_ol+1));
 Gtilt_controller = Gi_tilt*Gd_tilt*Kp_tilt;
+
+%%velocity controller
+iosvel(1) = linio(strcat(model, '/Gain2'),1,'openinput');
+iosvel(2) = linio(strcat(model, '/wheel_vel_filter'),1,'openoutput');
+setlinio(model,iosvel);
+sysvel = linearize(model,iosvel,op);
+[numvel, denvel] = ss2tf(sysvel.A,sysvel.B,sysvel.C,sysvel.D);
+Gvel = minreal(tf(numvel,denvel));
+%Gvel_post = -Gvel*tf([0.005,1],[0.005,0]);
+
+[mag phase] = bode(Gvel_post,w);
+alpha = 5;
+Ni = 5;
+phasemargin = 60;
+phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
+phi_i = rad2deg(atan2(-1,Ni));
+pc = phasemargin - 180 - phi_d - phi_i;
+n = find(phase > pc, 1, 'last');
+wc = w(n);
+tau_d = 1/(sqrt(alpha)*wc);
+tau_i = Ni/wc;
+Gd_vel = tf([tau_d 1],[alpha*tau_d 1]);
+Gi_vel = tf([tau_i 1], [tau_i 0]);
+[magc, phasec] = bode(Gtilt_post*Gi_tilt*Gd_tilt,wc);
+Kp_vel = 1/magc;
+Gvel_ol = Gvel_post*Gi_vel*Gd_vel*Kp_vel;
+Gvel_cl = minreal((Gvel_ol)/(Gvel_ol+1));
+Gvel_controller = Gi_vel*Gd_vel*Kp_vel;
