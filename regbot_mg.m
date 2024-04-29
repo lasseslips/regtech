@@ -31,8 +31,8 @@ pushDist = 0.1; % relative to motor axle [m]
 
 %% wheel velocity controller (no balance) PI-regulator
 % sample (usable) controller values
-Kpwv = 20;     % Kp
-tiwv = 0.01;   % Tau_i
+Kpwv = 15;     % Kp
+tiwv = 0.05;   % Tau_i
 Kffwv = 0;     % feed forward constant
 startAngle = 0;  % tilt in degrees at time zero
 twvlp = 0.005;    % velocity noise low pass filter time constant (recommended)
@@ -41,7 +41,7 @@ twvlp = 0.005;    % velocity noise low pass filter time constant (recommended)
 % Motor volatge to wheel velocity (wv)
 load_system(model);
 open_system(model);
-% define points in model
+% define points inG model
 ios(1) = linio(strcat(model,'/Limit9v'),1,'openinput');
 ios(2) = linio(strcat(model, '/wheel_vel_filter'),1,'openoutput');
 % attach to model
@@ -101,11 +101,11 @@ setlinio(model,iosvel);
 sysvel = linearize(model,iosvel,op);
 [numvel, denvel] = ss2tf(sysvel.A,sysvel.B,sysvel.C,sysvel.D);
 Gvel = minreal(tf(numvel,denvel));
-%Gvel_post = -Gvel*tf([0.005,1],[0.005,0]);
+%Gvel_post = -8.55*Gvel*tf([0.1,1],[0.1,0]);
 
-[mag phase] = bode(Gvel_post,w);
-alpha = 5;
-Ni = 5;
+[mag phase] = bode(Gvel,w);
+alpha = 10;
+Ni = 250;
 phasemargin = 60;
 phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
 phi_i = rad2deg(atan2(-1,Ni));
@@ -116,8 +116,37 @@ tau_d = 1/(sqrt(alpha)*wc);
 tau_i = Ni/wc;
 Gd_vel = tf([tau_d 1],[alpha*tau_d 1]);
 Gi_vel = tf([tau_i 1], [tau_i 0]);
-[magc, phasec] = bode(Gtilt_post*Gi_tilt*Gd_tilt,wc);
+[magc, phasec] = bode(Gvel*Gi_vel*Gd_vel,wc);
 Kp_vel = 1/magc;
-Gvel_ol = Gvel_post*Gi_vel*Gd_vel*Kp_vel;
+Gvel_ol = Gvel*Gi_vel*Gd_vel*Kp_vel;
 Gvel_cl = minreal((Gvel_ol)/(Gvel_ol+1));
 Gvel_controller = Gi_vel*Gd_vel*Kp_vel;
+
+
+
+%%position controller
+iospos(1) = linio(strcat(model, '/Gain3'),1,'openinput');
+iospos(2) = linio(strcat(model, '/robot with balance'),3,'openoutput');
+setlinio(model,iospos);
+syspos = linearize(model,iospos,op);
+[numpos, denpos] = ss2tf(syspos.A,syspos.B,syspos.C,syspos.D);
+Gpos = minreal(tf(numpos,denpos));
+
+[mag phase] = bode(Gpos,w);
+alpha = 0.1;
+Ni = 3;
+phasemargin = 60;
+phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
+phi_i = rad2deg(atan2(-1,Ni));
+pc = phasemargin - 180 - phi_d - phi_i;
+n = find(phase > pc, 1, 'last');
+wc = w(n);
+tau_d = 1/(sqrt(alpha)*wc);
+tau_i = Ni/wc;
+Gd_pos = tf([tau_d 1],[alpha*tau_d 1]);
+Gi_pos = tf([tau_i 1], [tau_i 0]);
+[magc, phasec] = bode(Gpos*Gi_pos*Gd_pos,wc);
+Kp_pos = 1/magc;
+Gpos_ol = Gpos*Gi_pos*Gd_pos*Kp_pos;
+Gpos_cl = minreal((Gpos_ol)/(Gpos_ol+1));
+Gpos_controller = Gi_pos*Gd_pos*Kp_pos;
