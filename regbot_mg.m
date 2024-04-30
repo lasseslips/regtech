@@ -34,7 +34,7 @@ pushDist = 0.1; % relative to motor axle [m]
 Kpwv = 15;     % Kp
 tiwv = 0.05;   % Tau_i
 Kffwv = 0;     % feed forward constant
-startAngle = 0;  % tilt in degrees at time zero
+startAngle = 10;  % tilt in degrees at time zero
 twvlp = 0.005;    % velocity noise low pass filter time constant (recommended)
 
 %% Estimate transfer function for base system using LINEARIZE
@@ -75,78 +75,43 @@ Gtilt_post = Gtilt*kppost*tf([tipost,1],[tipost,0]);
 
 %tilt controller
 w = logspace(-2,2,3000);
-[mag phase] = bode(Gtilt_post,w);
+
 alpha = 0.1;
 Ni = 3;
 phasemargin = 60;
-phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
-phi_i = rad2deg(atan2(-1,Ni));
-pc = phasemargin - 180 - phi_d - phi_i;
-n = find(phase > pc, 1, 'last');
-wc = w(n);
-tau_d = 1/(sqrt(alpha)*wc);
-tau_i = Ni/wc;
-Gd_tilt = tf([tau_d 1],[alpha*tau_d 1]);
-Gi_tilt = tf([tau_i 1], [tau_i 0]);
-[magc, phasec] = bode(Gtilt_post*Gi_tilt*Gd_tilt,wc);
-Kp_tilt = 1/magc;
-Gtilt_ol = Gtilt_post*Gi_tilt*Gd_tilt*Kp_tilt;
-Gtilt_cl = minreal((Gtilt_ol)/(Gtilt_ol+1));
-Gtilt_controller = Gi_tilt*Gd_tilt*Kp_tilt;
+[wc, Kp_tilt, taui,taud,ok] = findpid(Gtilt_post,phasemargin,Ni,alpha,w);
+Gd_tilt = tf([taud 1], [alpha*taud 1]);
+Gi_tilt = tf([taui 1], [taui 0]);
+G_ol_tilt = Kp_tilt*Gd_tilt*Gi_tilt*Gtilt_post;
+G_controller_tilt = Kp_tilt*Gd_tilt*Gi_tilt;
+G_cl_tilt = (G_ol_tilt)/(G_ol_tilt+1);
+
 
 %%velocity controller
-iosvel(1) = linio(strcat(model, '/Gain2'),1,'openinput');
-iosvel(2) = linio(strcat(model, '/wheel_vel_filter'),1,'openoutput');
-setlinio(model,iosvel);
-sysvel = linearize(model,iosvel,op);
-[numvel, denvel] = ss2tf(sysvel.A,sysvel.B,sysvel.C,sysvel.D);
-Gvel = minreal(tf(numvel,denvel));
-%Gvel_post = -8.55*Gvel*tf([0.1,1],[0.1,0]);
+Gvel = tf([5736],[1 313.5 1.305e04]);
 
-[mag phase] = bode(Gvel,w);
-alpha = 10;
-Ni = 250;
+alpha = 5;
+Ni = 3;
 phasemargin = 60;
-phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
-phi_i = rad2deg(atan2(-1,Ni));
-pc = phasemargin - 180 - phi_d - phi_i;
-n = find(phase > pc, 1, 'last');
-wc = w(n);
-tau_d = 1/(sqrt(alpha)*wc);
-tau_i = Ni/wc;
-Gd_vel = tf([tau_d 1],[alpha*tau_d 1]);
-Gi_vel = tf([tau_i 1], [tau_i 0]);
-[magc, phasec] = bode(Gvel*Gi_vel*Gd_vel,wc);
-Kp_vel = 1/magc;
-Gvel_ol = Gvel*Gi_vel*Gd_vel*Kp_vel;
-Gvel_cl = minreal((Gvel_ol)/(Gvel_ol+1));
-Gvel_controller = Gi_vel*Gd_vel*Kp_vel;
-
+[wc, Kp_vel, taui,taud,ok] = findpid(Gvel,phasemargin,Ni,alpha,w);
+Gd_vel = tf([taud 1], [alpha*taud 1]);
+Gi_vel = tf([taui 1], [taui 0]);
+G_ol_vel = Kp_vel*Gd_vel*Gi_vel*Gvel;
+G_controller_vel = Kp_vel*Gd_vel*Gi_vel;
+G_cl_vel = (G_ol_vel)/(G_ol_vel+1);
 
 
 %%position controller
-iospos(1) = linio(strcat(model, '/Gain3'),1,'openinput');
-iospos(2) = linio(strcat(model, '/robot with balance'),3,'openoutput');
-setlinio(model,iospos);
-syspos = linearize(model,iospos,op);
-[numpos, denpos] = ss2tf(syspos.A,syspos.B,syspos.C,syspos.D);
-Gpos = minreal(tf(numpos,denpos));
+Gpos = G_cl_vel * tf([1],[1 0]);
 
-[mag phase] = bode(Gpos,w);
-alpha = 0.1;
+alpha = 0.001;
 Ni = 3;
 phasemargin = 60;
-phi_d = rad2deg(asin((1-alpha)/(1+alpha)));
-phi_i = rad2deg(atan2(-1,Ni));
-pc = phasemargin - 180 - phi_d - phi_i;
-n = find(phase > pc, 1, 'last');
-wc = w(n);
-tau_d = 1/(sqrt(alpha)*wc);
-tau_i = Ni/wc;
-Gd_pos = tf([tau_d 1],[alpha*tau_d 1]);
-Gi_pos = tf([tau_i 1], [tau_i 0]);
-[magc, phasec] = bode(Gpos*Gi_pos*Gd_pos,wc);
-Kp_pos = 1/magc;
-Gpos_ol = Gpos*Gi_pos*Gd_pos*Kp_pos;
-Gpos_cl = minreal((Gpos_ol)/(Gpos_ol+1));
-Gpos_controller = Gi_pos*Gd_pos*Kp_pos;
+[wc, Kp_pos, taui,taud,ok] = findpid(Gpos,phasemargin,Ni,alpha,w);
+Gd_pos = tf([taud 1], [alpha*taud 1]);
+Gi_pos = tf([taui 1], [taui 0]);
+G_ol_pos = Kp_pos*Gd_pos*Gi_pos*Gpos;
+G_controller_pos = Kp_pos*Gd_pos*Gi_pos;
+G_cl_pos = (G_ol_pos)/(G_ol_pos+1);
+
+
