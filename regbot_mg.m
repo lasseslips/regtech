@@ -88,7 +88,7 @@ G_cl_tilt = (G_ol_tilt)/(G_ol_tilt+1);
 
 
 %%velocity controller
-Gvel = tf([5736],[1 313.5 1.305e04]);
+Gvel = tf([5736],[1 313.5 1.305e04])*G_cl_tilt;
 
 alpha = 5;
 Ni = 3;
@@ -104,9 +104,9 @@ G_cl_vel = (G_ol_vel)/(G_ol_vel+1);
 %%position controller
 Gpos = G_cl_vel * tf([1],[1 0]);
 
-alpha = 0.001;
-Ni = 3;
-phasemargin = 60;
+alpha = 0.01;
+Ni = 5;
+phasemargin = 70;
 [wc, Kp_pos, taui,taud,ok] = findpid(Gpos,phasemargin,Ni,alpha,w);
 Gd_pos = tf([taud 1], [alpha*taud 1]);
 Gi_pos = tf([taui 1], [taui 0]);
