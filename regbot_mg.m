@@ -19,11 +19,19 @@ model='regbot_1yayamg';
 % Km = Kemf;
 
 %measured values
-RA = (1.9+2.2)/4;
-JA = (0.00088+0.0007)/(4*100);
+% RA = (6+12)/4;
+% JA = (0.00093+0.00065)/(4*100);
+% LA = 6.6e-3/2;
+% BA = (0.00000383+0.00000058);
+% Kemf = (0.00812+0.00805)/2;
+% Km = Kemf;
+
+%test
+RA = (5.5)/2;
+JA = (0.00093+0.00065)/(4*1000);
 LA = 6.6e-3/2;
-BA = (0.00000627+0.00000055);
-Kemf = (0.00965+0.00876)/2;
+BA = (0.00000383+0.00000058);
+Kemf = (0.00812+0.00805)/2;
 Km = Kemf;
 
 % køretøj
@@ -80,7 +88,7 @@ sys = linearize(model,ios,op);
 [num,den] = ss2tf(sys.A, sys.B, sys.C, sys.D);
 Gwv = minreal(tf(num, den))
 
-Gwv = tf([1.1775 1.68],[1 7.334 7.141]);
+%Gwv = tf([1.1775 1.68],[1 7.334 7.141]);
 
 w = logspace(-2,2,3000);
 
@@ -93,6 +101,7 @@ Gd_velu = tf([taud 1], [alpha*taud 1]);
 Gi_velu = tf([taui 1], [taui 0]);
 
 G_ol_velu = minreal(Kp_velu*Gd_velu*Gi_velu*Gwv);
+%Kp_velu = 10;
 G_controller_velu = Kp_velu*Gi_velu;
 G_controller_velu_num = G_controller_velu.Numerator{1};
 G_controller_velu_den = G_controller_velu.Denominator{1};
@@ -142,6 +151,7 @@ G_cl_tilt = minreal((G_ol_tilt)/(G_ol_tilt+1));
 [mag phase wout] = bode(G_cl_tilt);
 [gain freq] = findpeaks(squeeze(mag));
 taufilter = 1/wout(freq(end));
+%taufilter = 1;
 G_tilt_filter = tf([1],[taufilter 1]);
 G_cl_tilt_filter = G_tilt_filter*G_cl_tilt;
 
@@ -156,7 +166,7 @@ sys = linearize(model,ios,op);
 Gvel = minreal(tf(num, den));
 
 
-alpha = 0.7;
+alpha = 0.9;
 Ni = 5;
 phasemargin = 70;
 
@@ -198,3 +208,20 @@ G_controller_pos_den = G_controller_pos.Denominator{1};
 G_cl_pos = (G_ol_pos)/(G_ol_pos+1);
 
 
+Kp_velu
+Gd_velu
+Gi_velu
+
+Gi_post
+Kp_tilt
+Gd_tilt
+Gi_tilt
+G_tilt_filter
+
+Kp_vel
+Gd_vel
+Gi_vel
+
+Kp_pos
+Gd_pos
+Gi_pos
